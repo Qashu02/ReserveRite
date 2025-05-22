@@ -9,6 +9,10 @@ import LocationExample from "./components/LocationExample";
 import HallProfileScreen from "./Screens/HallProfileScreen";
 import HallListScreen from "./Screens/HallListScreen";
 import FeedStack from "./Navigation/FeedStack";
+import BookingHistoryScreen from "./Screens/BookingHistoryScreen";
+import SupportScreen from "./Screens/SupportScreen";
+import ForgotPasswordScreen from "./Screens/ForgotPasswordScreen";
+import AuthNavigation from "./Navigation/AuthNavigation";
 export default function App() {
   const MyTheme = {
   ...DefaultTheme,
@@ -20,10 +24,8 @@ export default function App() {
   return (
     <View style={styles.container}>
       <NavigationContainer theme={MyTheme}>
-        <AppNavigation/>
-
+       <AppNavigation/>
       </NavigationContainer>
- 
       <Toast />
    
     </View>

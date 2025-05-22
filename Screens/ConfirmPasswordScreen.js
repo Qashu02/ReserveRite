@@ -5,8 +5,12 @@ import AppButton from '../components/AppButton';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import AppErrorMessage from '../components/AppErrorMessage';
+import Toast from 'react-native-toast-message';
+import auth from '../api/auth';
 
-function ConfirmPasswordScreen({ navigation }) {
+function ConfirmPasswordScreen({ route, navigation }) {
+  const { email } = route.params;  // Get email from navigation param
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -19,14 +23,31 @@ function ConfirmPasswordScreen({ navigation }) {
       .oneOf([Yup.ref("password"), null], "Passwords must match"),
   });
 
+  const handleResetPassword = async (values) => {
+    try {
+      // Call reset password API with email and new password
+      await auth.resetPassword(email, values.password);
+
+      Toast.show({
+        type: 'success',
+        text1: 'Password changed successfully',
+      });
+
+      navigation.navigate('Login');
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error?.response?.data?.message || 'Could not reset password',
+      });
+    }
+  };
+
   return (
     <Formik
       validationSchema={validationSchema}
       initialValues={{ password: '', confirmPassword: '' }}
-      onSubmit={(values) => {
-        console.log("Password is reset", values);
-        navigation.navigate('Login');
-      }}
+      onSubmit={handleResetPassword}
     >
       {({ touched, errors, handleChange, handleBlur, handleSubmit, values }) => (
         <View style={styles.container}>
@@ -34,7 +55,6 @@ function ConfirmPasswordScreen({ navigation }) {
 
           <AppTextInput
             placeholder="Enter Password"
-           
             iconPress="eye"
             secureTextEntry={!showPassword}
             onIconPress={() => setShowPassword((prev) => !prev)}
@@ -47,7 +67,6 @@ function ConfirmPasswordScreen({ navigation }) {
 
           <AppTextInput
             placeholder="Confirm Password"
-           
             iconPress="eye"
             secureTextEntry={!showConfirmPassword}
             onIconPress={() => setShowConfirmPassword((prev) => !prev)}
@@ -71,15 +90,15 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 20,
   },
   text: {
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 20,
   },
-  field:{
-    justifyContent:'space-between'
+  field: {
+    justifyContent: 'space-between',
   }
 });
 

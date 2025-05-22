@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,130 +9,154 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
+
 import AppTextInput from '../AppTextInput';
 import AppErrorMessage from '../AppErrorMessage';
 import ImageInputList from './ImageInputList';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Screen from '../Screen';
-const StepTwoSchema = Yup.object().shape({
+
+// Validation schema
+const validationSchema = Yup.object().shape({
+  images: Yup.array().min(1, 'Please add at least one image'),
   capacity: Yup.number()
     .required('Capacity is required')
-    .min(1, 'Capacity must be greater than 0'),
-  description: Yup.string()
-    .required("Description is required")
-    .min(20, "Description must be between 20 and 100 characters")
-    .max(100, "Description must be between 20 and 100 characters"),
-  menuPackages: Yup.array().min(1, 'At least one menu package is required'),
-  images: Yup.array().min(1, 'At least one image is required'),
+    .min(1, 'Capacity must be at least 1'),
   rentalPrice: Yup.number()
     .required('Rental price is required')
-    .min(0, 'Rental price must be a positive number'),
+    .min(1, 'Rental price must be positive'),
+  description: Yup.string().required('Description is required'),
+  menuPackages: Yup.array().min(1, 'Please add at least one menu package'),
+  newPackage: Yup.string(), // not required for form submission
+  newPrice: Yup.number(), // not required for form submission
 });
 
-const StepTwo = React.forwardRef((_, ref) => {
+const StepTwo = forwardRef(({ data, onChange }, ref) => {
   const formikRef = useRef();
 
-  React.useImperativeHandle(ref, () => ({
+  useImperativeHandle(ref, () => ({
     validateAndSubmit: async () => {
-      const isValid = await formikRef.current?.validateForm();
-      formikRef.current?.setTouched({
-        capacity: true,
-        menuPackages: true,
+      const errors = await formikRef.current.validateForm();
+      
+      // Mark all fields as touched to show validation errors
+      formikRef.current.setTouched({
         images: true,
+        capacity: true,
         rentalPrice: true,
+        description: true,
+        menuPackages: true,
       });
-      return Object.keys(isValid).length === 0;
+
+      if (Object.keys(errors).length === 0) {
+        // Return the actual form values
+        const { newPackage, newPrice, ...formData } = formikRef.current.values;
+        return formData;
+      } else {
+        return null;
+      }
     },
   }));
 
+  // Get initial values from props or use defaults
+  const getInitialValues = () => ({
+    images: data?.images || [],
+    capacity: data?.capacity || '',
+    rentalPrice: data?.rentalPrice || '',
+    description: data?.description || '',
+    menuPackages: data?.menuPackages || [],
+    newPackage: '',
+    newPrice: '',
+  });
+
   return (
-    <KeyboardAwareScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={styles.formContainer}
-      keyboardShouldPersistTaps="handled"
-      extraScrollHeight={20}
+    <Formik
+      innerRef={formikRef}
+      initialValues={getInitialValues()}
+      enableReinitialize={true} // Important: This allows form to update when data prop changes
+      validationSchema={validationSchema}
+      onSubmit={(values) => {
+        // Your submit logic here, for demo we just log it
+        console.log('Submitted data:', values);
+      }}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View>
-          <Formik
-            innerRef={formikRef}
-            initialValues={{
-              capacity: '',
-              description: '',
-              menuPackages: [],
-              images: [],
-              newPackage: '',
-              newPrice: '',
-              rentalPrice: '',
-            }}
-            validationSchema={StepTwoSchema}
-            onSubmit={(values) => {
-              console.log('StepTwo submitted:', values);
-            }}
+      {({
+        values,
+        errors,
+        touched,
+        handleChange,
+        handleBlur,
+        setFieldValue,
+        setFieldTouched,
+        validateField,
+        handleSubmit,
+      }) => {
+        // Helper function to call onChange with current form data
+        const notifyParentOfChange = () => {
+          if (onChange) {
+            const { newPackage, newPrice, ...formData } = values;
+            onChange(formData);
+          }
+        };
+
+        // Validate images if touched or changed
+        useEffect(() => {
+          if (touched.images) {
+            validateField('images');
+          }
+        }, [values.images.length, touched.images]);
+
+        const handleAddImage = async (uri) => {
+          const updatedImages = [...values.images, uri];
+          await setFieldValue('images', updatedImages);
+          await setFieldTouched('images', true);
+          notifyParentOfChange();
+        };
+
+        const handleRemoveImage = async (uri) => {
+          const updatedImages = values.images.filter((imageUri) => imageUri !== uri);
+          await setFieldValue('images', updatedImages);
+          await setFieldTouched('images', true);
+          notifyParentOfChange();
+        };
+
+        const addMenuPackage = async () => {
+          if (values.newPackage.trim()) {
+            const packageObject = {
+              name: values.newPackage.trim(),
+              pricePerHead: parseFloat(values.newPrice) || 0,
+            };
+
+            const updated = [...values.menuPackages, packageObject];
+            await setFieldValue('menuPackages', updated);
+            await setFieldTouched('menuPackages', true);
+            validateField('menuPackages');
+
+            setFieldValue('newPackage', '');
+            setFieldValue('newPrice', '');
+            Keyboard.dismiss();
+            notifyParentOfChange();
+          }
+        };
+
+        const removeMenuPackage = async (index) => {
+          const updated = values.menuPackages.filter((_, i) => i !== index);
+          await setFieldValue('menuPackages', updated);
+          await setFieldTouched('menuPackages', true);
+          validateField('menuPackages');
+          notifyParentOfChange();
+        };
+
+        return (
+          <KeyboardAwareScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.formContainer}
+            keyboardShouldPersistTaps="handled"
+            extraScrollHeight={20}
           >
-            {({
-              handleChange,
-              handleBlur,
-              values,
-              setFieldValue,
-              errors,
-              touched,
-              setFieldTouched,
-              validateField,
-              validateForm,
-            }) => {
-              const validateImageField = () => {
-                if (values.images.length > 0) {
-                  validateField('images');
-                }
-              };
-
-              useEffect(() => {
-                if (touched.images) {
-                  validateImageField();
-                }
-              }, [values.images.length, touched.images]);
-
-              const handleAddImage = async (uri) => {
-                const updatedImages = [...values.images, uri];
-                await setFieldValue('images', updatedImages);
-                await setFieldTouched('images', true);
-              };
-
-              const handleRemoveImage = async (uri) => {
-                const updatedImages = values.images.filter((imageUri) => imageUri !== uri);
-                await setFieldValue('images', updatedImages);
-                await setFieldTouched('images', true);
-              };
-
-              const addMenuPackage = async () => {
-                if (values.newPackage.trim()) {
-                  const packageObject = {
-                    name: values.newPackage.trim(),
-                    pricePerHead: parseFloat(values.newPrice) || 0,
-                  };
-
-                  const updated = [...values.menuPackages, packageObject];
-                  await setFieldValue('menuPackages', updated);
-                  await setFieldTouched('menuPackages', true);
-                  validateField('menuPackages');
-
-                  setFieldValue('newPackage', '');
-                  setFieldValue('newPrice', '');
-                  Keyboard.dismiss();
-                }
-              };
-
-              const removeMenuPackage = async (index) => {
-                const updated = values.menuPackages.filter((_, i) => i !== index);
-                await setFieldValue('menuPackages', updated);
-                await setFieldTouched('menuPackages', true);
-                validateField('menuPackages');
-              };
-
-              return (
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View>
                 <Screen>
                   <Text style={styles.label}>Upload Hall Images</Text>
                   <ImageInputList
@@ -147,7 +171,10 @@ const StepTwo = React.forwardRef((_, ref) => {
                     placeholder="e.g. 200"
                     keyboardType="numeric"
                     value={values.capacity}
-                    onChangeText={handleChange('capacity')}
+                    onChangeText={(text) => {
+                      handleChange('capacity')(text);
+                      notifyParentOfChange();
+                    }}
                     onBlur={() => {
                       setFieldTouched('capacity');
                       validateField('capacity');
@@ -155,24 +182,30 @@ const StepTwo = React.forwardRef((_, ref) => {
                   />
                   <AppErrorMessage visible={touched.capacity && errors.capacity} error={errors.capacity} />
 
-                    
-                                      <Text style={styles.label}>Rental Price</Text>
-                                      <AppTextInput
-                                        placeholder="e.g., 1500"
-                                        keyboardType="numeric"
-                                        value={values.rentalPrice}
-                                        onChangeText={handleChange('rentalPrice')}
-                                        onBlur={() => {
-                                          setFieldTouched('rentalPrice');
-                                          validateField('rentalPrice');
-                                        }}
-                                      />
-                                      <AppErrorMessage visible={touched.rentalPrice && errors.rentalPrice} error={errors.rentalPrice} />
+                  <Text style={styles.label}>Rental Price</Text>
+                  <AppTextInput
+                    placeholder="e.g., 1500"
+                    keyboardType="numeric"
+                    value={values.rentalPrice}
+                    onChangeText={(text) => {
+                      handleChange('rentalPrice')(text);
+                      notifyParentOfChange();
+                    }}
+                    onBlur={() => {
+                      setFieldTouched('rentalPrice');
+                      validateField('rentalPrice');
+                    }}
+                  />
+                  <AppErrorMessage visible={touched.rentalPrice && errors.rentalPrice} error={errors.rentalPrice} />
+
                   <Text style={styles.label}>Description</Text>
                   <AppTextInput
                     placeholder="Enter Description"
                     value={values.description}
-                    onChangeText={handleChange('description')}
+                    onChangeText={(text) => {
+                      handleChange('description')(text);
+                      notifyParentOfChange();
+                    }}
                     onBlur={() => {
                       setFieldTouched('description');
                       validateField('description');
@@ -181,7 +214,7 @@ const StepTwo = React.forwardRef((_, ref) => {
                     multiline={true}
                     textAlignVertical="top"
                   />
-                  <AppErrorMessage visible={touched.description} error={errors.description} />
+                  <AppErrorMessage visible={touched.description && errors.description} error={errors.description} />
 
                   <Text style={styles.label}>Menu Package Name</Text>
                   <TextInput
@@ -204,7 +237,10 @@ const StepTwo = React.forwardRef((_, ref) => {
                     <Text style={styles.addButtonText}>Add Package</Text>
                   </TouchableOpacity>
 
-                  <AppErrorMessage visible={touched.menuPackages && errors.menuPackages} error={errors.menuPackages} />
+                  <AppErrorMessage
+                    visible={touched.menuPackages && errors.menuPackages}
+                    error={errors.menuPackages}
+                  />
 
                   <FlatList
                     data={values.menuPackages}
@@ -225,12 +261,12 @@ const StepTwo = React.forwardRef((_, ref) => {
                     keyExtractor={(item, index) => index.toString()}
                   />
                 </Screen>
-              );
-            }}
-          </Formik>
-        </View>
-      </TouchableWithoutFeedback>
-    </KeyboardAwareScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </KeyboardAwareScrollView>
+        );
+      }}
+    </Formik>
   );
 });
 
@@ -294,6 +330,17 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   removeButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  submitBtn: {
+    backgroundColor: '#132743',
+    padding: 12,
+    borderRadius: 6,
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  btnText: {
     color: '#fff',
     fontWeight: 'bold',
   },

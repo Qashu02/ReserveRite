@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import colors from '../config/colors';
+import Screen from '../components/Screen';
 
 export default function SupportScreen() {
   const handleSubmit = () => {
@@ -8,6 +9,8 @@ export default function SupportScreen() {
   };
 
   return (
+    <Screen>
+
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Need Help?</Text>
       <Text style={styles.subtitle}>Feel free to contact our support team anytime.</Text>
@@ -34,12 +37,13 @@ export default function SupportScreen() {
         <Text style={styles.buttonText}>Submit Request</Text>
       </TouchableOpacity>
     </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    paddingHorizontal: 20,
     backgroundColor: colors.background,
     flexGrow: 1,
   },

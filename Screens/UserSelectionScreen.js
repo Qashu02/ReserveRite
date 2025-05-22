@@ -13,71 +13,52 @@ function UserSelectionScreen() {
   const route = useRoute();
   const navigation = useNavigation();
   const formData = route.params?.formData;
+console.log('formData:', formData);
 
   const registerApi = useApi(authApi.register);
 
-  const handleRoleSelect = async (role) => {
-    if (registerApi.loading) return; // Prevent multiple clicks
+  // Helper function to safely check for substrings in strings
+  const includesIgnoreCase = (text, phrase) =>
+    typeof text === 'string' && text.toLowerCase().includes(phrase.toLowerCase());
+const handleRoleSelect = async (role) => {
+  console.log('Role selected:', role);
 
-    try {
-      // Call the API via useApi hook
-      const response = await registerApi.request({ ...formData, role });
+  try {
+    const response = await registerApi.request({ ...formData, role });
+    console.log('API response:', response);
 
-      if (!response.ok) {
-        // Check if error is email already registered
-        if (
-          response.data?.message?.toLowerCase().includes('email already exist') ||
-          response.data?.error?.toLowerCase().includes('email already exist')
-        ) {
-          Toast.show({
-            type: 'error',
-            text1: 'Email Already Registered',
-            text2: 'Please try logging in instead',
-          });
-          navigation.navigate('Login');
-          return;
-        }
-
-        Toast.show({
-          type: 'error',
-          text1: 'Registration Failed',
-          text2: response.data?.message || 'Something went wrong',
-        });
-        return;
-      }
-
-      // Check stored user email AFTER successful registration to avoid premature deletion
-      const existingUser = await getData('user');
-
-      if (existingUser && existingUser.email !== formData.email) {
-        await removeData('user');
-        console.log("Cleared existing user to register new one");
-      }
-
-      // Save new user info
-      await saveData('user', response.data.user);
-
-      Toast.show({
-        type: 'success',
-        text1: 'Success',
-        text2: 'Account created successfully!',
-      });
-
-      // Navigate based on role
-      await navigation.reset({
-        index: 0,
-        routes: [{ name: role === 'manager' ? 'Hall Profile Form' : 'Client Tab' }],
-      });
-
-    } catch (error) {
-      console.error('Registration error:', error);
+    if (!response.ok) {
+      console.log('Registration failed:', response.data);
       Toast.show({
         type: 'error',
-        text1: 'Error',
-        text2: error.message || 'An unexpected error occurred',
+        text1: 'Registration Failed',
+        text2: response.data?.message || 'Something went wrong',
       });
+      return;
     }
-  };
+
+    console.log('Registration success, navigating...');
+    Toast.show({
+      type: 'success',
+      text1: 'Success',
+      text2: 'Account created successfully!',
+    });
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: role === 'manager' ? 'Hall Profile Form' : 'Client Tab' }],
+    });
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    Toast.show({
+      type: 'error',
+      text1: 'Error',
+      text2: error.message || 'An unexpected error occurred',
+    });
+  }
+};
+
 
   return (
     <View style={styles.container}>
@@ -105,7 +86,6 @@ function UserSelectionScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor:'#fff',
     width: '100%',
     alignItems: 'center',
   },

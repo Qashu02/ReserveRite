@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useEffect,useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import colors from '../../config/colors';
 
-export default function StepThree() {
-  const [selectedPlan, setSelectedPlan] = useState(null);
+export default forwardRef(function StepThree({ data, onChange }, ref) {
+  const [selectedPlan, setSelectedPlan] = useState(data?.selectedPlan || null);
 
   const plans = [
     {
@@ -28,6 +28,29 @@ export default function StepThree() {
       savings: 'Save $100',
     },
   ];
+
+const hasMounted = useRef(false);
+
+useEffect(() => {
+  if (hasMounted.current) {
+    onChange?.({ selectedPlan });
+  } else {
+    hasMounted.current = true;
+  }
+}, [selectedPlan]);
+
+  // Expose validation method to parent component
+  useImperativeHandle(ref, () => ({
+    validateAndSubmit: () => {
+      if (selectedPlan) {
+        console.log('Step Three - Selected plan:', selectedPlan);
+        return { selectedPlan };
+      } else {
+        console.log('Step Three - No plan selected');
+        return null; // Validation failed
+      }
+    },
+  }));
 
   const handleSelect = (id) => {
     setSelectedPlan(id);
@@ -74,16 +97,18 @@ export default function StepThree() {
         ))}
       </ScrollView>
 
-   
+      {/* Show validation error if no plan selected */}
+      {!selectedPlan && (
+        <Text style={styles.errorText}>Please select a pricing plan</Text>
+      )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
     padding: 20,
     flex: 1,
-   
   },
   heading: {
     fontSize: 22,
@@ -129,7 +154,7 @@ const styles = StyleSheet.create({
     color: '#777',
   },
   savingsContainer: {
-    backgroundColor: colors.secondary, // your secondary color
+    backgroundColor: colors.secondary,
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 12,
@@ -139,6 +164,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 10,
   },
   saveContainer: {
     position: 'absolute',

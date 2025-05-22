@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
@@ -19,7 +19,7 @@ const StepOneSchema = Yup.object().shape({
   }),
 });
 
-const StepOne = forwardRef((props, ref) => {
+const StepOne = forwardRef(({ data, onChange }, ref) => {
   const formikRef = useRef();
 
   useImperativeHandle(ref, () => ({
@@ -32,115 +32,148 @@ const StepOne = forwardRef((props, ref) => {
         contact: true,
         facilities: {
           parking: true,
-          catering:true,
+          catering: true,
           air_conditioning: true,
           bridal_room: true,
           music: true,
           lighting: true,
-
         },
       });
 
       if (Object.keys(errors).length === 0) {
-        formikRef.current.handleSubmit();
-        return true;
+        // Return the actual form values instead of true
+        return formikRef.current.values;
       } else {
-        return false;
+        return null;
       }
     },
   }));
 
+  // Get initial values from props or use defaults
+  const getInitialValues = () => ({
+    hallName: data?.hallName || '',
+    location: data?.location || '',
+    contact: data?.contact || '',
+    facilities: {
+      parking: data?.facilities?.parking || false,
+      catering: data?.facilities?.catering || true,
+      air_conditioning: data?.facilities?.air_conditioning || false,
+      bridal_room: data?.facilities?.bridal_room || false,
+      music: data?.facilities?.music || false,
+      lighting: data?.facilities?.lighting || false,
+    },
+  });
+
   return (
     <Formik
       innerRef={formikRef}
-      initialValues={{
-        hallName: '',
-        location: '',
-        contact: '',
-        facilities: {
-          parking: false,
-          catering:true,
-          air_conditioning: false,
-          bridal_room: false,
-          music: false,
-          lighting: false,
-          
-        },
-      }}
+      initialValues={getInitialValues()}
+      enableReinitialize={true} // Important: This allows form to update when data prop changes
       validationSchema={StepOneSchema}
       onSubmit={(values) => {
         console.log('Step One Values:', values);
       }}
     >
-      {({ handleChange, handleBlur, values, setFieldValue, errors, touched }) => (
-        <View>
-          <Text style={styles.label}>Hall Name</Text>
-          <AppTextInput
-            style={styles.input}
-            onChangeText={handleChange('hallName')}
-            onBlur={handleBlur('hallName')}
-            value={values.hallName}
-            placeholder="Enter Hall Name"
-          />
-          {touched.hallName && errors.hallName && (
-            <Text style={styles.error}>{errors.hallName}</Text>
-          )}
+      {({ handleChange, handleBlur, values, setFieldValue, errors, touched }) => {
+        // Helper function to call onChange
+        const handleValueChange = (field, value) => {
+          const updatedValues = { ...values };
+          if (field.includes('.')) {
+            const [parent, child] = field.split('.');
+            updatedValues[parent] = { ...updatedValues[parent], [child]: value };
+          } else {
+            updatedValues[field] = value;
+          }
+          if (onChange) {
+            onChange(updatedValues);
+          }
+        };
 
-          <Text style={styles.label}>Location</Text>
-          <AppTextInput
-            style={styles.input}
-            onChangeText={handleChange('location')}
-            onBlur={handleBlur('location')}
-            value={values.location}
-            placeholder="Enter Location"
-          />
-          {touched.location && errors.location && (
-            <Text style={styles.error}>{errors.location}</Text>
-          )}
+        return (
+          <View>
+            <Text style={styles.label}>Hall Name</Text>
+            <AppTextInput
+              style={styles.input}
+              onChangeText={(text) => {
+                handleChange('hallName')(text);
+                handleValueChange('hallName', text);
+              }}
+              onBlur={handleBlur('hallName')}
+              value={values.hallName}
+              placeholder="Enter Hall Name"
+            />
+            {touched.hallName && errors.hallName && (
+              <Text style={styles.error}>{errors.hallName}</Text>
+            )}
 
-          <Text style={styles.label}>Contact</Text>
-          <AppTextInput
-            style={styles.input}
-            onChangeText={handleChange('contact')}
-            onBlur={handleBlur('contact')}
-            value={values.contact}
-            placeholder="Enter Contact Number"
-            keyboardType="phone-pad"
-          />
-          {touched.contact && errors.contact && (
-            <Text style={styles.error}>{errors.contact}</Text>
-          )}
+            <Text style={styles.label}>Location</Text>
+            <AppTextInput
+              style={styles.input}
+              onChangeText={(text) => {
+                handleChange('location')(text);
+                handleValueChange('location', text);
+              }}
+              onBlur={handleBlur('location')}
+              value={values.location}
+              placeholder="Enter Location"
+            />
+            {touched.location && errors.location && (
+              <Text style={styles.error}>{errors.location}</Text>
+            )}
 
-          <Text style={styles.label}>Choose Facilities</Text>
-          {['parking', 'catering', 'air_conditioning', 'bridal_room', 'music', 'lighting'].map(
-            (facilityKey) => (
-              <View key={facilityKey} style={styles.facilityRow}>
-                <Text style={styles.facilityLabel}>
-                  {formatFacilityLabel(facilityKey)}
-                </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.optionButton,
-                    values.facilities[facilityKey] && styles.selectedAvailable,
-                  ]}
-                  onPress={() => setFieldValue(`facilities.${facilityKey}`, true)}
-                >
-                  <Text style={styles.optionText}>Available</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.optionButton,
-                    values.facilities[facilityKey] === false && styles.selectedNotAvailable,
-                  ]}
-                  onPress={() => setFieldValue(`facilities.${facilityKey}`, false)}
-                >
-                  <Text style={styles.optionText}>Not Available</Text>
-                </TouchableOpacity>
-              </View>
-            )
-          )}
-        </View>
-      )}
+            <Text style={styles.label}>Contact</Text>
+            <AppTextInput
+              style={styles.input}
+              onChangeText={(text) => {
+                handleChange('contact')(text);
+                handleValueChange('contact', text);
+              }}
+              onBlur={handleBlur('contact')}
+              value={values.contact}
+              placeholder="Enter Contact Number"
+              keyboardType="phone-pad"
+            />
+            {touched.contact && errors.contact && (
+              <Text style={styles.error}>{errors.contact}</Text>
+            )}
+
+            <Text style={styles.label}>Choose Facilities</Text>
+            {['parking', 'catering', 'air_conditioning', 'bridal_room', 'music', 'lighting'].map(
+              (facilityKey) => (
+                <View key={facilityKey} style={styles.facilityRow}>
+                  <Text style={styles.facilityLabel}>
+                    {formatFacilityLabel(facilityKey)}
+                  </Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.optionButton,
+                      values.facilities[facilityKey] && styles.selectedAvailable,
+                    ]}
+                    onPress={() => {
+                      setFieldValue(`facilities.${facilityKey}`, true);
+                      handleValueChange(`facilities.${facilityKey}`, true);
+                    }}
+                  >
+                    <Text style={styles.optionText}>Available</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.optionButton,
+                      values.facilities[facilityKey] === false && styles.selectedNotAvailable,
+                    ]}
+                    onPress={() => {
+                      setFieldValue(`facilities.${facilityKey}`, false);
+                      handleValueChange(`facilities.${facilityKey}`, false);
+                    }}
+                  >
+                    <Text style={styles.optionText}>Not Available</Text>
+                  </TouchableOpacity>
+                </View>
+              )
+            )}
+          </View>
+        );
+      }}
     </Formik>
   );
 });

@@ -1,16 +1,25 @@
-import client from './client'; // Your API client setup (e.g., axios instance)
+import client from './client'; // axios instance
 
-const endpoint = '/auth'; // Base path if you have one, adjust accordingly
+const endpoint = '/api/auth';
 
 export const register = (userInfo) => client.post(`${endpoint}/register`, userInfo);
-
 export const login = (credentials) => client.post(`${endpoint}/login`, credentials);
+export const logout = () => client.post(`${endpoint}/logout`);
 
-export const logout = () => client.post(`${endpoint}/logout`); // If you have logout endpoint
+export const forgotPassword = (email) =>
+  client.post(`${endpoint}/forgot-password`, { email });
 
-// Optionally you can add more helper methods
+export const verifyOTP = (email, otp) =>
+  client.post(`${endpoint}/verify-otp`, { email, otp });
+
+export const resetPassword = (email, password,otp) =>
+  client.post(`${endpoint}/reset-password`, { email, password,otp });
+
 export default {
   register,
   login,
   logout,
+  forgotPassword,
+  verifyOTP,
+  resetPassword,
 };

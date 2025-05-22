@@ -5,21 +5,57 @@ import AppButton from '../components/AppButton';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import AppErrorMessage from '../components/AppErrorMessage';
+import auth from '../api/auth'; // 🔁 your centralized API file
+import Toast from 'react-native-toast-message';
 
 function ForgotPasswordScreen({ navigation }) {
   const ValidationSchema = Yup.object().shape({
     email: Yup.string().required("Email is Required").email('Invalid Email'),
   });
 
+  const handleForgotPassword = async (values) => {
+  try {
+    const response = await auth.forgotPassword(values.email);
+    console.log("Response from forgotPassword:", response.data);
+
+    if (response.data.message === "User not found") {
+      // Show error toast if user not found
+      Toast.show({
+        type: 'error',
+        text1: 'Email not found',
+        text2: 'Please enter a registered email address.',
+      });
+      return;  // Stop further processing
+    }
+
+    // Otherwise assume OTP sent
+    Toast.show({
+      type: 'success',
+      text1: 'OTP sent successfully',
+    });
+
+    navigation.navigate("Verification", { email: values.email });
+
+  } catch (error) {
+    console.error('API error:', error.response || error.message);
+
+    Toast.show({
+      type: 'error',
+      text1: 'Something went wrong',
+      text2: error?.response?.data?.message || 'Please try again later.',
+    });
+  }
+};
+
+
+
+
   return (
     <View style={styles.container}>
       <Formik
         initialValues={{ email: '' }}
         validationSchema={ValidationSchema}
-        onSubmit={(values) => {
-          console.log("Forgot password", values);
-          navigation.navigate("ConfirmPassword");
-        }}
+        onSubmit={handleForgotPassword}
       >
         {({ values, touched, handleBlur, handleChange, errors, handleSubmit }) => (
           <View style={styles.content}>

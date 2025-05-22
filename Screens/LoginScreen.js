@@ -113,7 +113,7 @@ console.log('Full login response:', response.data);
           )}
         </Formik>
 
-        <TouchableOpacity style={styles.forgotContainer} onPress={() => navigation.navigate('ForgotPassword')}>
+        <TouchableOpacity style={styles.forgotContainer} onPress={() => navigation.navigate('Forgot Password')}>
           <Text style={styles.forgotText}>Forgot Password?</Text>
         </TouchableOpacity>
 
