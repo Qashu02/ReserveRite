@@ -1,16 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import HallAvailability from './HallAvailability';
+import { View, Text, StyleSheet } from 'react-native';
 
-const HallInfoSection = () => {
-  const hallLocation = '123 Main Street, Lahore, Pakistan';
+const HallInfoSection = ({ hall }) => {
+  const hallLocation = hall?.location || 'Not specified';
 
   const hallInfo = {
-    hasParking: true,
-    hasAC: true,
-    hasBridalRoom: true,
-    capacity: 300,
+    hasParking: hall?.facilities?.parking,
+    hasAC: hall?.facilities?.airConditioning,
+    hasBridalRoom: hall?.facilities?.bridalRoom,
+    capacity: hall?.capacity || 'N/A',
   };
+
+  console.log('Hall:', hall);
 
   return (
     <View>
@@ -34,10 +35,6 @@ const HallInfoSection = () => {
           👥 Capacity: {hallInfo.capacity} Guests
         </Text>
       </View>
-
-      {/* <HallAvailability /> */}
-
-  
     </View>
   );
 };
@@ -73,5 +70,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 6,
   },
-
 });

@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState,useContext } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import colors from '../config/colors';
-
+import { UserContext } from '../Utils/userContext';
 export default function SettingsScreen({ navigation }) {
+ 
+  const {user}=useContext(UserContext)
+  const userEmail=user?.email;
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const toggleNotifications = () => setNotificationsEnabled(!notificationsEnabled);
+
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -36,7 +40,7 @@ export default function SettingsScreen({ navigation }) {
       <SettingItem
         icon={<Feather name="lock" size={22} color= {colors.secondary} />}
         label="Change Password"
-        onPress={() => navigation.navigate('Change Password')}
+        onPress={() => navigation.navigate('Change Password', {email:userEmail})}
       />
 
       <View style={styles.item}>

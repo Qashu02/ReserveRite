@@ -1,15 +1,17 @@
-import React, { useState, forwardRef, useImperativeHandle, useEffect,useRef } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import colors from '../../config/colors';
 
-export default forwardRef(function StepThree({ data, onChange }, ref) {
+export default forwardRef(function StepThree({ data, onChange, onProceedToPayment, navigation }, ref) {
   const [selectedPlan, setSelectedPlan] = useState(data?.selectedPlan || null);
 
+  // Added priceValue for backend payment processing (Stripe)
   const plans = [
     {
       id: 'monthly',
       title: 'Monthly Plan',
       price: '$50 / month',
+      priceValue: 50,          // <-- numeric price
       description: 'Billed monthly',
       savings: '',
     },
@@ -17,6 +19,7 @@ export default forwardRef(function StepThree({ data, onChange }, ref) {
       id: '6months',
       title: '6 Months Plan',
       price: '$270 / 6 months',
+      priceValue: 270,
       description: 'Save $30 compared to monthly',
       savings: 'Save $30',
     },
@@ -24,20 +27,21 @@ export default forwardRef(function StepThree({ data, onChange }, ref) {
       id: 'yearly',
       title: 'Yearly Plan',
       price: '$500 / year',
+      priceValue: 500,
       description: 'Best value plan',
       savings: 'Save $100',
     },
   ];
 
-const hasMounted = useRef(false);
+  const hasMounted = useRef(false);
 
-useEffect(() => {
-  if (hasMounted.current) {
-    onChange?.({ selectedPlan });
-  } else {
-    hasMounted.current = true;
-  }
-}, [selectedPlan]);
+  useEffect(() => {
+    if (hasMounted.current) {
+      onChange?.({ selectedPlan });
+    } else {
+      hasMounted.current = true;
+    }
+  }, [selectedPlan]);
 
   // Expose validation method to parent component
   useImperativeHandle(ref, () => ({
@@ -54,16 +58,22 @@ useEffect(() => {
 
   const handleSelect = (id) => {
     setSelectedPlan(id);
-    console.log("Selected Plan:", id);
+   navigation.navigate('Payment')
   };
 
-  const handleSave = () => {
-    if (selectedPlan) {
-      console.log('Saving plan:', selectedPlan);
-      // Navigate or perform save action
-    } else {
+  // New handler for Proceed to Payment button
+  const handleProceedToPayment = () => {
+    if (!selectedPlan) {
       alert('Please select a plan first');
+      return;
     }
+    const plan = plans.find(p => p.id === selectedPlan);
+    if (!plan) {
+      alert('Selected plan not found');
+      return;
+    }
+    // Pass the full plan object (including priceValue) to parent handler
+    onProceedToPayment?.(plan);
   };
 
   return (
@@ -97,10 +107,11 @@ useEffect(() => {
         ))}
       </ScrollView>
 
-      {/* Show validation error if no plan selected */}
       {!selectedPlan && (
         <Text style={styles.errorText}>Please select a pricing plan</Text>
       )}
+
+   
     </View>
   );
 });

@@ -3,16 +3,8 @@ import { View, StyleSheet } from "react-native";
 import AppNavigation from "./Navigation/AppNavigation";
 import Toast from "react-native-toast-message";
 import { NavigationContainer,DefaultTheme } from "@react-navigation/native";
-import MessageScreen from "./Screens/MessageScreen";
-import MessageStack from "./Navigation/MessageStack";
-import LocationExample from "./components/LocationExample";
-import HallProfileScreen from "./Screens/HallProfileScreen";
-import HallListScreen from "./Screens/HallListScreen";
-import FeedStack from "./Navigation/FeedStack";
-import BookingHistoryScreen from "./Screens/BookingHistoryScreen";
-import SupportScreen from "./Screens/SupportScreen";
-import ForgotPasswordScreen from "./Screens/ForgotPasswordScreen";
-import AuthNavigation from "./Navigation/AuthNavigation";
+import { UserProvider } from "./Utils/userContext";
+import NetworkStatus from "./components/NetworkStatus";
 export default function App() {
   const MyTheme = {
   ...DefaultTheme,
@@ -22,13 +14,21 @@ export default function App() {
   },
 };
   return (
+      <UserProvider>
     <View style={styles.container}>
+
       <NavigationContainer theme={MyTheme}>
-       <AppNavigation/>
+        <NetworkStatus/>
+   <AppNavigation/>
       </NavigationContainer>
+  
+  
+
       <Toast />
+  
    
     </View>
+      </UserProvider>
   );
 }
 

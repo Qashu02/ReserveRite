@@ -4,7 +4,7 @@ import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import colors from '../config/colors';
 import { getData, removeData } from '../Utils/storage';
 import Toast from 'react-native-toast-message';
-import AuthApi from '../api/auth'; // ✅ Your logout API call
+import AuthApi from '../api/auth'; // 
 
 const defaultAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 

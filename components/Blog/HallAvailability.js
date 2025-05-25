@@ -1,30 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import colors from '../../config/colors';
 
-const dummySlots = [
-  { id: '1', time: '10:00 AM - 12:00 PM', available: true },
-  { id: '2', time: '12:30 PM - 2:30 PM', available: false },
-  { id: '3', time: '3:00 PM - 5:00 PM', available: true },
-  { id: '4', time: '6:00 PM - 8:00 PM', available: true },
-];
-
-const HallAvailability = ({ slots = dummySlots, onSelectSlot }) => {
+const HallAvailability = ({ slots = [], onSelectSlot }) => {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleDateChange = (event, date) => {
-    setShowDatePicker(Platform.OS === 'ios'); // Keep open for iOS
+    setShowDatePicker(Platform.OS === 'ios');
     if (date) setSelectedDate(date);
   };
 
   const handleSelect = (slot) => {
-    if (!slot.available) return;
+    if (!slot.isAvailable) return;
     setSelectedSlot(slot.id);
     onSelectSlot?.(slot);
   };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toDateString();
+  };
+
+  // Optional: Filter slots for selectedDate only if date is included in backend
+  const filteredSlots = slots?.filter(slot => {
+    // if slot.date exists, filter by it
+    if (slot.date) {
+      const slotDate = new Date(slot.date).toDateString();
+      return slotDate === selectedDate.toDateString();
+    }
+    return true;
+  });
 
   return (
     <View style={styles.container}>
@@ -48,21 +56,33 @@ const HallAvailability = ({ slots = dummySlots, onSelectSlot }) => {
       <Text style={styles.heading}>Available Time Slots</Text>
 
       <FlatList
-        data={slots}
-        keyExtractor={(item) => item.id}
+        data={filteredSlots}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <Pressable
             onPress={() => handleSelect(item)}
             style={[
               styles.slot,
-              !item.available && styles.unavailable,
+              !item.isAvailable && styles.unavailable,
               selectedSlot === item.id && styles.selected,
             ]}
           >
-            <Text style={styles.slotText}>
+            <Text style={[
+              styles.slotText,
+              selectedSlot === item.id && { color: '#fff' },
+              !item.isAvailable && { color: '#aaa' },
+            ]}>
               {item.time}
             </Text>
+            {!item.isAvailable && (
+              <Text style={styles.unavailableText}>Not Available</Text>
+            )}
           </Pressable>
+        )}
+        ListEmptyComponent={() => (
+          <Text style={{ textAlign: 'center', marginTop: 20, color: '#888' }}>
+            No slots available for selected date.
+          </Text>
         )}
       />
     </View>
@@ -102,6 +122,7 @@ const styles = StyleSheet.create({
     borderColor: '#4CAF50',
     borderRadius: 10,
     marginBottom: 8,
+    alignItems: 'center',
   },
   unavailable: {
     backgroundColor: '#f0f0f0',
@@ -111,7 +132,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondary,
   },
   slotText: {
-    color: '#000',
-    textAlign: 'center',
+    fontSize: 16,
+  },
+  unavailableText: {
+    fontSize: 12,
+    color: '#999',
   },
 });

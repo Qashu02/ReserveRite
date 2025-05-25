@@ -1,93 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import AppTextInput from '../components/AppTextInput'; // custom input
+import AppTextInput from '../components/AppTextInput';
 import colors from '../config/colors';
+import { getReviewsByHall, addReview } from "../api/reviews";
+import { UserContext } from '../Utils/userContext';
 
 const ReviewScreen = ({ route }) => {
-  const { isHallManager } = route.params;
+  const { user, authToken } = useContext(UserContext);
+  const { isHallManager, hallId } = route.params;
 
   const [reviewList, setReviewList] = useState([]);
   const [reviewText, setReviewText] = useState('');
   const [rating, setRating] = useState(0);
   const [replyTexts, setReplyTexts] = useState({});
-  const [isLoading, setIsLoading] = useState(true); // NEW
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load sample data once when component mounts
-  useEffect(() => {
-    const sampleData = [
-      {
-        id: '1',
-        name: 'Alice',
-        comment: 'Amazing place! The lighting was beautiful.',
-        rating: 5,
-        reply: 'Thank you, Alice! We’re glad you loved it!',
-      },
-      {
-        id: '2',
-        name: 'Bob',
-        comment: 'Spacious hall, but AC wasn’t working well.',
-        rating: 3,
-        reply: '',
-      },
-      {
-        id: '3',
-        name: 'Catherine',
-        comment: 'Perfect for weddings. The decor was on point.',
-        rating: 4,
-        reply: 'Thank you for the feedback, Catherine!',
-      },
-    ];
+  
+const fetchReviews = async () => {
+  setIsLoading(true);
+  try {
+    const res = await getReviewsByHall(hallId);
 
-    setTimeout(() => {
-      setReviewList(sampleData);
-      setIsLoading(false); // Stop loading after data is set
-    }, 100); // simulate slight delay
+    if (!res.ok) {
+      Alert.alert('Error', 'Failed to fetch reviews');
+      setIsLoading(false);
+      return;
+    }
+
+    if (Array.isArray(res.data.reviews)) {
+      // Filter again by hallId just in case backend sends extra
+      const filteredReviews = res.data.reviews.filter(r => r.hallId === hallId);
+      setReviewList(filteredReviews);
+    } else {
+      setReviewList([]);
+    }
+  } catch (error) {
+    Alert.alert('Error', 'An error occurred while fetching reviews');
+  }
+  setIsLoading(false);
+};
+
+useEffect(() => {
+    fetchReviews();
   }, []);
+
+  const handleAddReview = async () => {
+    if (!user) {
+      Alert.alert('You must be logged in to post here');
+      return;
+    }
+    if (reviewText.trim() === '' || rating === 0) {
+      Alert.alert('Please enter review text and rating');
+      return;
+    }
+
+    const reviewData = {
+      comment: reviewText,
+      rating,
+      hallId,
+    };
+
+    try {
+      console.log("Posting review:", reviewData);
+      const res = await addReview(reviewData, authToken);
+      console.log("API Response:", res);
+
+      if (!res.ok) {
+        Alert.alert('Error', 'Failed to post review');
+        return;
+      }
+
+      setReviewText('');
+      setRating(0);
+      fetchReviews();
+    } catch (error) {
+      console.error("Error posting review:", error);
+      Alert.alert('Error', 'Something went wrong while posting review');
+    }
+  };
 
   const totalReviews = reviewList.length;
   const averageRating =
     totalReviews > 0
-      ? (reviewList.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1)
+      ? (
+          reviewList.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+        ).toFixed(1)
       : 0;
-
-  const handleAddReview = () => {
-    if (reviewText.trim() === '' || rating === 0) return;
-
-    const newReview = {
-      id: Date.now().toString(),
-      name: 'Guest',
-      comment: reviewText,
-      rating,
-      reply: '',
-    };
-
-    setReviewList([newReview, ...reviewList]);
-    setReviewText('');
-    setRating(0);
-  };
-
-  const handleReply = (id) => {
-    const replyText = replyTexts[id]?.trim();
-    if (!replyText) return;
-
-    const updated = reviewList.map((r) =>
-      r.id === id ? { ...r, reply: replyText } : r
-    );
-    setReviewList(updated);
-    setReplyTexts({ ...replyTexts, [id]: '' });
-  };
 
   const renderItem = ({ item }) => (
     <View style={styles.reviewItem}>
-      <Text style={styles.reviewer}>{item.name}</Text>
+      <Text style={styles.reviewer}>{item.user?.name || 'Guest'}</Text>
       <View style={styles.starRow}>
         {[1, 2, 3, 4, 5].map((i) => (
           <FontAwesome
@@ -109,29 +112,19 @@ const ReviewScreen = ({ route }) => {
         isHallManager && (
           <AppTextInput
             placeholder="Reply to this review..."
-            value={replyTexts[item.id] || ''}
+            value={replyTexts[item._id] || ''}
             onChangeText={(text) =>
-              setReplyTexts({ ...replyTexts, [item.id]: text })
+              setReplyTexts({ ...replyTexts, [item._id]: text })
             }
             style={styles.replyInput}
             placeholderTextColor="#777"
             iconPress="send"
-            onIconPress={() => handleReply(item.id)}
+            onIconPress={() => handleReply(item._id)}
           />
         )
       )}
     </View>
   );
-
-  // Show loading spinner
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.service} />
-        <Text>Loading reviews...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -144,7 +137,7 @@ const ReviewScreen = ({ route }) => {
         </Text>
       </View>
 
-      {!isHallManager && (
+      {!isHallManager && user && (
         <>
           <View style={styles.starRow}>
             {[1, 2, 3, 4, 5].map((i) => (
@@ -161,7 +154,7 @@ const ReviewScreen = ({ route }) => {
 
           <AppTextInput
             style={styles.reviewInputContainer}
-            placeholder="Write your reviews..."
+            placeholder="Write your review..."
             iconPress="send"
             onIconPress={handleAddReview}
             value={reviewText}
@@ -173,9 +166,15 @@ const ReviewScreen = ({ route }) => {
         </>
       )}
 
+      {!user && !isHallManager && (
+        <Text style={{ textAlign: 'center', marginVertical: 20, color: 'red' }}>
+          Please login to post a review.
+        </Text>
+      )}
+
       <FlatList
         data={reviewList}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => (item._id ? item._id.toString() : index.toString())}
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 20 }}
         extraData={reviewList}
@@ -188,21 +187,24 @@ export default ReviewScreen;
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 24,
-    padding: 10,
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#fff',
   },
   heading: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 12,
+    color: '#333',
   },
   summaryRow: {
-    marginBottom: 10,
     flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   summaryText: {
-    fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.service,
   },
   starRow: {
@@ -213,48 +215,48 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   reviewInputContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 30,
+    marginBottom: 20,
   },
   reviewItem: {
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#f4f4f4',
     padding: 12,
     borderRadius: 8,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   reviewer: {
     fontWeight: 'bold',
+    fontSize: 15,
+    marginBottom: 4,
+    color: '#222',
   },
   comment: {
-    marginVertical: 4,
+    fontSize: 14,
+    color: '#444',
+    marginBottom: 6,
   },
   replyContainer: {
-    backgroundColor: '#eee',
     marginTop: 8,
+    backgroundColor: '#e6e6e6',
     padding: 8,
     borderRadius: 6,
   },
   replyLabel: {
     fontWeight: 'bold',
     marginBottom: 3,
+    fontSize: 13,
+    color: '#444',
   },
   replyText: {
     fontSize: 14,
-    color: '#444',
+    color: '#333',
   },
   replyInput: {
-    borderColor: '#ccc',
+    marginTop: 10,
     borderWidth: 1,
+    borderColor: '#ccc',
     borderRadius: 6,
-    padding: 8,
-    marginTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 10,
+    fontSize: 14,
+    backgroundColor: '#fff',
   },
 });

@@ -2,11 +2,11 @@ import React, { useState, useRef } from 'react';
 import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import Toast from 'react-native-toast-message';
 import AppButton from '../components/AppButton';
-import auth from '../api/auth'; // Your API client with verifyOTP method
+import auth from '../api/auth';
 
 function VerificationScreen({ route, navigation }) {
-  const { email } = route.params; // Get email from navigation params
-  const [otp, setOtp] = useState(['', '', '', '','','']);
+  const { email } = route.params;
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const inputs = useRef([]);
 
   const handleChange = (text, index) => {
@@ -14,8 +14,6 @@ function VerificationScreen({ route, navigation }) {
       const newOtp = [...otp];
       newOtp[index] = text;
       setOtp(newOtp);
-
-      // Move to next input if filled
       if (text && index < inputs.current.length - 1) {
         inputs.current[index + 1].focus();
       }
@@ -39,11 +37,13 @@ function VerificationScreen({ route, navigation }) {
           text1: 'OTP Verified Successfully',
         });
 
-        navigation.navigate('ConfirmPassword', { email,otp:enteredOtp});
-
+        navigation.navigate('ConfirmPassword', {
+          isReset: true,
+          emailFromOTP: email,
+          otpFromOTP: enteredOtp, // ✅ Fix: use correct variable here
+        });
       } catch (error) {
         const message = error?.response?.data?.message || 'Invalid OTP, please try again.';
-
         Toast.show({
           type: 'error',
           text1: 'OTP Verification Failed',
@@ -81,11 +81,7 @@ function VerificationScreen({ route, navigation }) {
           />
         ))}
       </View>
-
       <AppButton title="Submit" onPress={handleVerify} />
-
-      {/* Place Toast component at root of your app if not already */}
-      {/* <Toast ref={(ref) => Toast.setRef(ref)} /> */}
     </KeyboardAvoidingView>
   );
 }

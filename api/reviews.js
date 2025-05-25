@@ -1,27 +1,24 @@
-import apiClient from '../apiClient'; // Make sure this is set up correctly with your baseURL
+import client from './client';
+import storage from "../Utils/storage"
 
-// Add a review
-export const addReview = async (reviewData, token) => {
-  return apiClient.post('/reviews', reviewData, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+// Authenticated POST: Add a review
+export const addReview = async (reviewData, authToken) => {
+  return client.post('/api/reviews', reviewData, {
+    headers: { Authorization: `Bearer ${authToken}` },
   });
 };
 
-// Get all reviews for a specific hall
-export const getReviewsByHall = async (hallId) => {
-  return apiClient.get(`/reviews/hall/${hallId}`);
-};
 
-// Get a single review by ID
-export const getReviewById = async (id) => {
-  return apiClient.get(`/reviews/${id}`);
-};
+// Public GET: Get all reviews for a hall
+export const getReviewsByHall = (hallId) => client.get(`/api/reviews/hall/${hallId}`);
 
-// Delete a review by ID
-export const deleteReview = async (id, token) => {
-  return apiClient.delete(`/reviews/${id}`, {
+// Public GET: Get a specific review by ID
+export const getReviewById = (id) => client.get(`/api/reviews/${id}`);
+
+// Authenticated DELETE: Delete a review
+export const deleteReview = async (id) => {
+  const token = await storage.getToken();
+  return client.delete(`/api/reviews/${id}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },

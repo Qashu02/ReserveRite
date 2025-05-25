@@ -1,38 +1,114 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useContext } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { AntDesign } from '@expo/vector-icons';
 import colors from '../config/colors';
+import updateProfileApi from '../api/updateprofile';
+import Toast from 'react-native-toast-message';
+import {UserContext} from "../Utils/userContext"
 
-export default function EditProfileScreen() {
+export default function EditProfileScreen({ navigation }) {
+const { user, authToken } = useContext(UserContext);
+const token = authToken;
+
+console.log('Loaded token:', token)
   const [profilePic, setProfilePic] = useState(null);
-  const [name, setName] = useState('John Doe');
-  const [email, setEmail] = useState('johndoe@example.com');
-  const [phone, setPhone] = useState('9876543210');
+  const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [loading, setLoading] = useState(false);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
+      quality: 0.8,
       allowsEditing: true,
+      aspect: [1, 1],
     });
 
     if (!result.canceled) {
-      setProfilePic(result.assets[0].uri);
+      setProfilePic(result.assets[0]);
     }
   };
 
-  const handleSave = () => {
-    // Submit updated info to backend or local state
-    alert('Profile Updated!');
+  const handleSave = async () => {
+    setLoading(true);
+
+    if (!token) {
+      Toast.show({
+        type: 'error',
+        text1: 'Authentication error',
+        text2: 'No valid token found. Please login again.',
+      });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('email', email);
+
+   if (profilePic) {
+  const filename = profilePic.uri.split('/').pop() || 'profile.jpg';
+  const match = /\.(\w+)$/.exec(filename?.toLowerCase() || '');
+  const ext = match ? match[1] : 'jpg';
+  const type = `image/${ext}`;
+
+  console.log('Uploading:', {
+    uri: profilePic.uri,
+    name: filename,
+    type,
+  });
+
+  formData.append('profilePic', {
+    uri: profilePic.uri,
+    name: filename,
+    type,
+  });
+}
+
+
+
+
+      const response = await updateProfileApi.updateProfile(formData, token);
+
+      if (response.status === 200) {
+        Toast.show({
+          type: 'success',
+          text1: 'Success',
+          text2: 'Profile Updated!',
+        });
+        navigation.goBack();
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: 'Failed to update profile.',
+        });
+      }
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.message || 'Something went wrong!',
+      });
+    }
+
+    setLoading(false);
   };
 
   return (
     <View style={styles.container}>
-      {/* Profile Picture */}
       <TouchableOpacity onPress={pickImage} style={styles.avatarWrapper}>
         {profilePic ? (
-          <Image source={{ uri: profilePic }} style={styles.avatar} />
+          <Image source={{ uri: profilePic.uri }} style={styles.avatar} />
         ) : (
           <View style={styles.avatarPlaceholder}>
             <AntDesign name="user" size={40} color="#999" />
@@ -41,17 +117,25 @@ export default function EditProfileScreen() {
         )}
       </TouchableOpacity>
 
-      {/* Input Fields */}
       <Text style={styles.label}>Full Name</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} />
 
       <Text style={styles.label}>Email</Text>
-      <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" />
+      <TextInput
+        style={styles.input}
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+      />
 
-
-      {/* Save Button */}
-      <TouchableOpacity onPress={handleSave} style={styles.saveBtn}>
-        <Text style={styles.saveText}>Save Changes</Text>
+      <TouchableOpacity
+        onPress={handleSave}
+        style={styles.saveBtn}
+        disabled={loading}
+      >
+        <Text style={styles.saveText}>
+          {loading ? 'Saving...' : 'Save Changes'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -64,11 +148,17 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   avatar: {
-    width: 100, height: 100, borderRadius: 50,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },
   avatarPlaceholder: {
-    width: 100, height: 100, borderRadius: 50,
-    backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#eee',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   label: {
     fontWeight: '600',

@@ -12,9 +12,15 @@ import { Ionicons, FontAwesome } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
-const Card = ({ hall ,onPress}) => {
+// Change this to your backend's base URL where images are served from
+const BASE_URL = 'http://192.168.1.6:3000'; 
+
+const Card = ({ hall, onPress }) => {
   const flatListRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  // Safely get images array or empty array if undefined
+  const images = Array.isArray(hall.pictures) ? hall.pictures : [];
 
   const handleScroll = (event) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / width);
@@ -29,16 +35,27 @@ const Card = ({ hall ,onPress}) => {
   };
 
   const goToNext = () => {
-    if (activeIndex < hall.images.length - 1) {
+    if (activeIndex < images.length - 1) {
       flatListRef.current?.scrollToIndex({ index: activeIndex + 1, animated: true });
       setActiveIndex(activeIndex + 1);
     }
   };
 
+  // Helper function to return full URI for image
+  const getFullImageUri = (path) => {
+    if (!path) return null;
+    // If path already starts with http/https, return as is
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    // Otherwise, prepend base URL
+    return BASE_URL + path;
+  };
+
   return (
-    <TouchableOpacity style={styles.card}  onPress={onPress}>
+    <TouchableOpacity style={styles.card} onPress={onPress}>
       <FlatList
-        data={hall.images}
+        data={images}
         ref={flatListRef}
         horizontal
         pagingEnabled
@@ -47,30 +64,31 @@ const Card = ({ hall ,onPress}) => {
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item, index) => index.toString()}
         renderItem={({ item }) => (
-          <Image source={{ uri: item }} style={styles.image} />
+          <Image source={{ uri: getFullImageUri(item) }} style={styles.image} />
         )}
       />
 
-      {/* Arrows */}
-      <View style={styles.leftArrow}>
-        <TouchableOpacity onPress={goToPrevious} disabled={activeIndex === 0}>
-          <Ionicons name="chevron-back-circle" size={40} color="#fff" />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.rightArrow}>
-        <TouchableOpacity
-          onPress={goToNext}
-          disabled={activeIndex === hall.images.length - 1}
-        >
-          <Ionicons name="chevron-forward-circle" size={40} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      {/* Arrows: only show if more than 1 image */}
+      {images.length > 1 && (
+        <>
+          <View style={styles.leftArrow}>
+            <TouchableOpacity onPress={goToPrevious} disabled={activeIndex === 0}>
+              <Ionicons name="chevron-back-circle" size={40} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.rightArrow}>
+            <TouchableOpacity onPress={goToNext} disabled={activeIndex === images.length - 1}>
+              <Ionicons name="chevron-forward-circle" size={40} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
 
       {/* Overlay Info */}
       <View style={styles.overlay}>
         <Text style={styles.name}>{hall.name}</Text>
         <Text style={styles.rating}>
-          <FontAwesome name="star" size={18} color="#FFD700" /> {hall.rating}
+          <FontAwesome name="star" size={18} color="#FFD700" /> {hall.rating ?? 'N/A'}
         </Text>
         <Text style={styles.location}>{hall.location}</Text>
         <Text style={styles.price}>{hall.price}</Text>

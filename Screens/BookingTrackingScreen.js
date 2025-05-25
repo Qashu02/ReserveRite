@@ -1,113 +1,154 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native'
-import React from 'react'
+import React, { useContext, useEffect, useState } from 'react';
+import { FlatList, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { Card } from 'react-native-paper';
 import Screen from '../components/Screen';
+import { UserContext } from '../Utils/userContext';
+import bookingApi from '../api/booking';
+import { useNavigation } from '@react-navigation/native';
+
 export default function BookingTrackingScreen() {
-    const bookings = [
-        {
-          id: '1',
-          hallName: 'Grand Royal Hall',
-          date: '2025-04-20',
-          status: 'Confirmed',
-        },
-        {
-          id: '2',
-          hallName: 'Elite Banquet',
-          date: '2025-04-25',
-          status: 'Pending',
-        },
-        {
-          id: '3',
-          hallName: 'Oceanview Ballroom',
-          date: '2025-05-01',
-          status: 'Cancelled',
-        },
-      ];
+  const { user, authToken } = useContext(UserContext);
+  const navigation = useNavigation();
 
-      const renderStatusIndicator =(status)=>{
-        switch  (status){
-            case 'Confirmed':
-                return 'green';
-              case 'Pending':
-                return 'orange';
-              case 'Cancelled':
-                return 'red';
-              default:
-                return 'gray';
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!user || !authToken) {
+      console.log('User or authToken missing:', user, authToken);
+      navigation.navigate('Login');
+      return;
+    }
+
+    const fetchBookings = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const response = await bookingApi.getMyBookings(authToken);
+        console.log(response);
+        if (response.ok) {
+          setBookings(response.data);
+        } else {
+          setError('Failed to fetch bookings');
         }
-  
+      } catch (e) {
+        setError('Failed to fetch bookings');
       }
-      const renderItem=({item})=>{
-        return(
+      setLoading(false);
+    };
 
- <Card style={styles.card}>
-    <View style={styles.row}>
-        <View style={[styles.statusIndicator,{ backgroundColor: renderStatusIndicator(item.status)}]}/>
+    fetchBookings();
+  }, [user, authToken]);
+
+  const renderStatusIndicator = (status) => {
+    switch (status.toLowerCase()) {
+      case 'confirmed':
+        return 'green';
+      case 'pending':
+        return 'orange';
+      case 'cancelled':
+        return 'red';
+      default:
+        return 'gray';
+    }
+  };
+
+  const renderItem = ({ item }) => (
+    <Card style={styles.card}>
+      <View style={styles.row}>
+        <View style={[styles.statusIndicator, { backgroundColor: renderStatusIndicator(item.status) }]} />
         <View>
-            <Text style={styles.hallName}>{item.hallName}</Text>
-            <Text style={styles.date}>{item.date}</Text>
-            <Text style={styles.status}>status : {item.status}</Text>
+          <Text style={styles.hallName}>{item.hallName || 'Hall Name N/A'}</Text>
+          <Text style={styles.status}>Status: {item.status}</Text>
+          <Text style={styles.date}>{item.timeSlot}</Text>
+          <Text style={styles.date}>Guests:{item.totalGuests}</Text>
         </View>
-    </View>
+      </View>
+    </Card>
+  );
 
- </Card>
-        )
-      }
+  if (loading) {
+    return (
+      <Screen style={styles.container}>
+        <ActivityIndicator size="large" />
+      </Screen>
+    );
+  }
+
+  if (error) {
+    return (
+      <Screen style={styles.container}>
+        <Text style={styles.errorText}>{error}</Text>
+      </Screen>
+    );
+  }
+
+  if (bookings.length === 0) {
+    return (
+      <Screen style={styles.container}>
+        <Text>No bookings found.</Text>
+      </Screen>
+    );
+  }
 
   return (
     <Screen style={styles.container}>
-        <Text style={styles.title}>Track your Booking</Text>
-     <FlatList
-     data={bookings}
-     keyExtractor={(item)=>item.id}
-     renderItem={renderItem}
-     style={styles.list}
-     />
-
+      <Text style={styles.title}>Track your Booking</Text>
+      <FlatList
+        data={bookings}
+        keyExtractor={(item, index) => (item._id ? item._id.toString() : index.toString())}
+        renderItem={renderItem}
+        style={styles.list}
+      />
     </Screen>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      padding: 10,
-   
-      
-    },
-    title: {
-      fontSize: 22,
-      fontWeight: 'bold',
-      marginBottom: 16,
-    },
-    list: {
-      paddingBottom: 16,
-    },
-    card: {
-      marginBottom: 12,
-      padding: 16,
-      borderRadius: 10,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    statusIndicator: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      marginRight: 12,
-    },
-    hallName: {
-      fontSize: 18,
-      fontWeight: '600',
-    },
-    date: {
-      fontSize: 14,
-      color: '#555',
-    },
-    status: {
-      fontSize: 14,
-      fontStyle: 'italic',
-    },
-  });
+  container: {
+    flex: 1,
+    padding: 10,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  list: {
+    paddingBottom: 16,
+  },
+  card: {
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 10,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  hallName: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  date: {
+    fontSize: 14,
+    color: '#555',
+  },
+  status: {
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 16,
+  },
+});

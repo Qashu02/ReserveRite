@@ -12,8 +12,8 @@ export const forgotPassword = (email) =>
 export const verifyOTP = (email, otp) =>
   client.post(`${endpoint}/verify-otp`, { email, otp });
 
-export const resetPassword = (email, password,otp) =>
-  client.post(`${endpoint}/reset-password`, { email, password,otp });
+export const resetPassword = (email, newPassword, otp) =>
+  client.post(`${endpoint}/reset-password`, { email, newPassword, otp })
 
 export default {
   register,

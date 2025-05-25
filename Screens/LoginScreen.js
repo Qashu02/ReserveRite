@@ -19,56 +19,73 @@ const validationSchema = Yup.object().shape({
 const LoginScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (values) => {
-    if (loading) return;
-    setLoading(true);
-  ;
+ const handleLogin = async (values) => {
+  if (loading) return;
+  setLoading(true);
 
+  try {
+    const response = await AuthApi.login(values);
+    const data = response.data;
 
-    try {
-   const response = await AuthApi.login(values);
-console.log('Full login response:', response.data);
+    console.log('Full login response:', data);
 
-
-      if (!response.ok) {
-        Toast.show({
-          type: 'error',
-          text1: 'Login Failed',
-          text2: response.data?.message || 'Invalid email or password',
-        });
-        setLoading(false);
-        return;
-      }
-
-      const { name, email, role } = response.data.user; // Ensure user is returned
-
-      console.log('User Data to be stored:', { name, email, role });
-      await saveData('user', { name, email, role });
-
-      Toast.show({
-        type: 'success',
-        text1: 'Login Successful',
-        text2: 'Welcome back!',
-      });
-
-      // Slight delay to allow toast to show
-      setTimeout(() => {
-        const targetScreen = role === 'manager' ? 'Manager Tab' : 'Client Tab';
-        navigation.reset({
-          index: 0,
-          routes: [{ name: targetScreen }],
-        });
-      }, 500);
-    } catch (error) {
+    if (!data.token || !data.user) {
+      // Show backend error message or fallback
       Toast.show({
         type: 'error',
-        text1: 'Error',
-        text2: error.message || 'Unexpected error occurred',
+        text1: 'Login Failed',
+        text2: data.message || 'Invalid credentials',
       });
-    } finally {
       setLoading(false);
+      return; // Stop further execution
     }
-  };
+
+    await saveData('authToken', data.token);
+    await saveData('user', data.user);
+
+    Toast.show({
+      type: 'success',
+      text1: 'Login Successful',
+      text2: 'Welcome back!',
+    });
+
+    setTimeout(() => {
+      let targetScreen;
+
+      if (data.user.role === 'admin') {
+        targetScreen = 'Admin Dashboard';
+      } else if (data.user.role === 'manager') {
+        targetScreen = 'Manager Tab';
+      } else {
+        targetScreen = 'Client Tab';
+      }
+
+      navigation.reset({
+        index: 0,
+        routes: [{ name: targetScreen }],
+      });
+    }, 500);
+
+  } catch (error) {
+    console.error('Login error:', error);
+
+    let message = 'Unexpected error occurred';
+
+    if (error.response && error.response.data) {
+      message = error.response.data.message || message;
+    } else if (error.message) {
+      message = error.message;
+    }
+
+    Toast.show({
+      type: 'error',
+      text1: 'Login Failed',
+      text2: message,
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>

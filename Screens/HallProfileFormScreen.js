@@ -176,13 +176,19 @@ const handleSubmit = async () => {
         return editMode
           ? null
           : (
-            <StepThree
-              ref={stepThreeRef}
-              data={formData.stepThree}
-              onChange={(data) => updateFormData('stepThree', data)}
-              editMode={editMode}
-              hallId={hallId}
-            />
+         <StepThree
+  data={{ selectedPlan: null }}
+  onChange={({ selectedPlan }) => console.log('Selected plan:', selectedPlan)}
+  onProceedToPayment={(plan) => {
+   
+    navigation.navigate('PaymentScreen', {
+      amount: plan.priceValue, 
+      planTitle: plan.title,
+      planId: plan.id,
+    });
+  }}
+/>
+
           );
       default:
         return null;
